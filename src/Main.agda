@@ -5,7 +5,15 @@ open import Data.Unit
 
 module Main where
 
+process : String → String
+process line = line ++ " " ++ line
+
+{-# NON_TERMINATING #-}
 main : IO ⊤
 main = do
+  putStr "> "
+  hFlush stdout
   line <- getLine
-  putStrLn (line ++ line)
+  putStr "= "
+  putStrLn (process line)
+  main
