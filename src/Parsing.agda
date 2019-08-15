@@ -74,3 +74,28 @@ placeValueEmpty = refl
 
 placeValueSingleton : ∀ d → placeValue (d ∷ []) ≡ d
 placeValueSingleton d = +-identityʳ d
+
+data DecimalNumber⁺ : List Digit → Set where
+  leadingDigit : ∀ d → d > 0 → DecimalNumber⁺ (d ∷ [])
+  trailingDigit : ∀ d ds → DecimalNumber⁺ ds → DecimalNumber⁺ (d ∷ ds)
+
+n≤n*c⁺ : ∀ {c} n → n ≤ n * suc c
+n≤n*c⁺ {c} n with *-monoʳ-≤ n (s≤s (z≤n {c}))
+... | p rewrite *-identityʳ n = p
+
+open ≤-Reasoning
+
+placeValuePositive : ∀ ds → DecimalNumber⁺ ds → 1 ≤ placeValue ds
+placeValuePositive .(d ∷ []) (leadingDigit d d>0) rewrite +-identityʳ d = d>0
+placeValuePositive .(d ∷ ds) (trailingDigit d ds num)
+  with placeValue ds | placeValuePositive ds num
+... | pv | rec =
+  begin
+    1
+  ≤⟨ rec ⟩
+    pv
+  ≤⟨ n≤n*c⁺ pv ⟩
+    pv * 10
+  ≤⟨ +-monoˡ-≤ (pv * 10) z≤n ⟩
+    d + pv * 10
+  ∎
