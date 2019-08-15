@@ -11,9 +11,10 @@ open import Parsing
 module Main where
 
 process : String → Maybe String
-process line =
-  Maybe.map (λ trimmed → "= " ++ toString (convert (parseNumber trimmed)))
-      (trim line)
+process line = Maybe.map helper (trim line)
+  where
+    helper : String → String
+    helper trimmed = "= " ++ toString (convert (parseNumber (toChars trimmed)))
 
 {-# NON_TERMINATING #-}
 main : IO ⊤
