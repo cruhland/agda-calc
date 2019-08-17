@@ -34,14 +34,24 @@ AsciiDigit c = (toℕ '0' ≤ c) × (c ≤ toℕ '9')
 asciiDigit? : ∀ c → Dec (AsciiDigit c)
 asciiDigit? c = (toℕ '0' ≤? c) ×-dec (c ≤? toℕ '9')
 
+-- noproof: definition
+ℕDigit : Digit → Set
+ℕDigit = _≤ 9
+
+-- self-certifying
+ℕDigit? : ∀ d → Dec (ℕDigit d)
+ℕDigit? = _≤? 9
+
 maybeAsciiDigit : ℕChar → Maybe Digit
 maybeAsciiDigit c with asciiDigit? c
 maybeAsciiDigit c | yes _ = just (c ∸ toℕ '0')
 maybeAsciiDigit c | no _ = nothing
 
+-- proof pending
 placeValue : List Digit → ℕ
 placeValue ds = foldr (λ d n → d + n * 10) 0 ds
 
+-- proof pending
 parseNumber : List ℕChar → ℕ
 parseNumber chars = placeValue (reverse (mapMaybe maybeAsciiDigit chars))
 
@@ -63,11 +73,19 @@ maybeAsciiDigitValid :
     0 ∷ 1 ∷ 2 ∷ 3 ∷ 4 ∷ 5 ∷ 6 ∷ 7 ∷ 8 ∷ 9 ∷ []
 maybeAsciiDigitValid = refl
 
-maybeAsciiDigitInvalid :
+maybeAsciiDigit→ℕDigit : ∀ c d → maybeAsciiDigit c ≡ just d → ℕDigit d
+maybeAsciiDigit→ℕDigit c d eq with asciiDigit? c
+maybeAsciiDigit→ℕDigit c .(c ∸ 48) refl | yes (48≤c , c≤57) = ∸-monoˡ-≤ 48 c≤57
+
+maybeAsciiDigitInvalidˡ :
   ∀ nc → ¬ AsciiDigit nc → maybeAsciiDigit nc ≡ nothing
-maybeAsciiDigitInvalid nc ¬ad with asciiDigit? nc
-maybeAsciiDigitInvalid nc ¬ad | yes ad = ⊥-elim (¬ad ad)
-maybeAsciiDigitInvalid nc ¬ad | no _ = refl
+maybeAsciiDigitInvalidˡ nc ¬ad with asciiDigit? nc
+maybeAsciiDigitInvalidˡ nc ¬ad | yes ad = ⊥-elim (¬ad ad)
+maybeAsciiDigitInvalidˡ nc ¬ad | no _ = refl
+
+maybeAsciiDigitInvalidʳ : ∀ nc → maybeAsciiDigit nc ≡ nothing → ¬ AsciiDigit nc
+maybeAsciiDigitInvalidʳ nc eq with asciiDigit? nc
+maybeAsciiDigitInvalidʳ nc eq | no ¬p = ¬p
 
 placeValueEmpty : placeValue [] ≡ 0
 placeValueEmpty = refl
