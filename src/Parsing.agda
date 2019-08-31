@@ -47,9 +47,12 @@ maybeAsciiDigit c with asciiDigit? c
 maybeAsciiDigit c | yes _ = just (c ∸ toℕ '0')
 maybeAsciiDigit c | no _ = nothing
 
--- proof pending
+appendDigit : Digit → ℕ → ℕ
+appendDigit d n = d + n * 10
+
+-- proofs pending
 placeValue : List Digit → ℕ
-placeValue ds = foldr (λ d n → d + n * 10) 0 ds
+placeValue ds = foldr appendDigit 0 ds
 
 -- proof pending
 parseNumber : List ℕChar → ℕ
@@ -101,19 +104,69 @@ n≤n*c⁺ : ∀ {c} n → n ≤ n * suc c
 n≤n*c⁺ {c} n with *-monoʳ-≤ n (s≤s (z≤n {c}))
 ... | p rewrite *-identityʳ n = p
 
-open ≤-Reasoning
+open ≤-Reasoning renaming
+  (begin_ to ≤-begin_; _∎ to _≤-∎; _≡⟨_⟩_ to _≤-≡⟨_⟩_; _≡⟨⟩_ to _≤-≡⟨⟩_)
+
+appendDigit-≤ : ∀ d n → n ≤ appendDigit d n
+appendDigit-≤ d n =
+  ≤-begin
+    n
+  ≤⟨ n≤n*c⁺ n ⟩
+    n * 10
+  ≤⟨ +-monoˡ-≤ (n * 10) z≤n ⟩
+    d + n * 10
+  ≤-≡⟨⟩
+    appendDigit d n
+  ≤-∎
+
+placeValue-≤ : ∀ d ds → DecimalNumber⁺ ds → placeValue ds ≤ placeValue (d ∷ ds)
+placeValue-≤ d ds num = appendDigit-≤ d (placeValue ds)
 
 placeValuePositive : ∀ ds → DecimalNumber⁺ ds → 1 ≤ placeValue ds
 placeValuePositive .(d ∷ []) (leadingDigit d d>0) rewrite +-identityʳ d = d>0
 placeValuePositive .(d ∷ ds) (trailingDigit d ds num)
   with placeValue ds | placeValuePositive ds num
 ... | pv | rec =
-  begin
+  ≤-begin
     1
   ≤⟨ rec ⟩
     pv
-  ≤⟨ n≤n*c⁺ pv ⟩
-    pv * 10
-  ≤⟨ +-monoˡ-≤ (pv * 10) z≤n ⟩
+  ≤⟨ appendDigit-≤ d pv ⟩
     d + pv * 10
-  ∎
+  ≤-∎
+
+decimalNumber⁺-length : ∀ ds → DecimalNumber⁺ ds → 1 ≤ length ds
+decimalNumber⁺-length .(d ∷ []) (leadingDigit d d>0) = s≤s z≤n
+decimalNumber⁺-length .(d ∷ ds) (trailingDigit d ds num) = s≤s z≤n
+
+open ≡-Reasoning renaming (begin_ to ≡-begin_; _∎ to _≡-∎)
+
+^-split : ∀ b m n → m ≤ n → b ^ n ≡ b ^ m * b ^ (n ∸ m)
+^-split b m n m≤n =
+  ≡-begin
+    b ^ n
+  ≡⟨ sym $ cong (b ^_) (m+[n∸m]≡n m≤n) ⟩
+    b ^ (m + (n ∸ m))
+  ≡⟨ ^-distribˡ-+-* b m (n ∸ m) ⟩
+    b ^ m * b ^ (n ∸ m)
+  ≡-∎
+
+placeValueLowerBound :
+  ∀ ds → DecimalNumber⁺ ds → 10 ^ (length ds ∸ 1) ≤ placeValue ds
+placeValueLowerBound .(d ∷ []) (leadingDigit d d>0) rewrite +-identityʳ d = d>0
+placeValueLowerBound .(d ∷ ds) (trailingDigit d ds num) =
+  ≤-begin
+    10 ^ (length (d ∷ ds) ∸ 1)
+  ≤-≡⟨⟩
+    10 ^ length ds
+  ≤-≡⟨ ^-split 10 1 (length ds) (decimalNumber⁺-length ds num) ⟩
+    10 * 10 ^ (length ds ∸ 1)
+  ≤⟨ *-monoʳ-≤ 10 (placeValueLowerBound ds num) ⟩
+    10 * placeValue ds
+  ≤-≡⟨ *-comm 10 (placeValue ds) ⟩
+    placeValue ds * 10
+  ≤⟨ +-monoˡ-≤ (placeValue ds * 10) z≤n ⟩
+    d + placeValue ds * 10
+  ≤-≡⟨⟩
+    placeValue (d ∷ ds)
+  ≤-∎
