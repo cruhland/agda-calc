@@ -1,6 +1,6 @@
 open import Agda.Builtin.TrustMe
 open import BasicString
-open import Data.Char
+open import Data.Char hiding (_<_)
 open import Data.Char.Properties
 open import Data.Empty
 open import Data.Fin using (Fin)
@@ -9,7 +9,7 @@ open import Data.Maybe using (Maybe; nothing; just)
 open import Data.Nat
 open import Data.Nat.Properties
 open import Data.Product using (_×_; _,_)
-open import Data.String as String hiding (length)
+open import Data.String as String hiding (length; _<_)
 open import Data.Unit using (⊤; tt)
 open import Function
 open import Relation.Binary.PropositionalEquality
@@ -97,8 +97,10 @@ placeValueSingleton : ∀ d → placeValue (d ∷ []) ≡ d
 placeValueSingleton d = +-identityʳ d
 
 data DecimalNumber⁺ : List Digit → Set where
-  leadingDigit : ∀ d → d > 0 → DecimalNumber⁺ (d ∷ [])
-  trailingDigit : ∀ d ds → DecimalNumber⁺ ds → DecimalNumber⁺ (d ∷ ds)
+  leadingDigit :
+    ∀ d → ℕDigit d → d > 0 → DecimalNumber⁺ (d ∷ [])
+  trailingDigit :
+    ∀ d ds → ℕDigit d → DecimalNumber⁺ ds → DecimalNumber⁺ (d ∷ ds)
 
 n≤n*c⁺ : ∀ {c} n → n ≤ n * suc c
 n≤n*c⁺ {c} n with *-monoʳ-≤ n (s≤s (z≤n {c}))
@@ -123,8 +125,9 @@ placeValue-≤ : ∀ d ds → DecimalNumber⁺ ds → placeValue ds ≤ placeVal
 placeValue-≤ d ds num = appendDigit-≤ d (placeValue ds)
 
 placeValuePositive : ∀ ds → DecimalNumber⁺ ds → 1 ≤ placeValue ds
-placeValuePositive .(d ∷ []) (leadingDigit d d>0) rewrite +-identityʳ d = d>0
-placeValuePositive .(d ∷ ds) (trailingDigit d ds num)
+placeValuePositive .(d ∷ []) (leadingDigit d nd d>0)
+  rewrite +-identityʳ d = d>0
+placeValuePositive .(d ∷ ds) (trailingDigit d ds nd num)
   with placeValue ds | placeValuePositive ds num
 ... | pv | rec =
   ≤-begin
@@ -136,8 +139,8 @@ placeValuePositive .(d ∷ ds) (trailingDigit d ds num)
   ≤-∎
 
 decimalNumber⁺-length : ∀ ds → DecimalNumber⁺ ds → 1 ≤ length ds
-decimalNumber⁺-length .(d ∷ []) (leadingDigit d d>0) = s≤s z≤n
-decimalNumber⁺-length .(d ∷ ds) (trailingDigit d ds num) = s≤s z≤n
+decimalNumber⁺-length .(d ∷ []) (leadingDigit d nd d>0) = s≤s z≤n
+decimalNumber⁺-length .(d ∷ ds) (trailingDigit d ds nd num) = s≤s z≤n
 
 open ≡-Reasoning renaming (begin_ to ≡-begin_; _∎ to _≡-∎)
 
@@ -153,8 +156,9 @@ open ≡-Reasoning renaming (begin_ to ≡-begin_; _∎ to _≡-∎)
 
 placeValueLowerBound :
   ∀ ds → DecimalNumber⁺ ds → 10 ^ (length ds ∸ 1) ≤ placeValue ds
-placeValueLowerBound .(d ∷ []) (leadingDigit d d>0) rewrite +-identityʳ d = d>0
-placeValueLowerBound .(d ∷ ds) (trailingDigit d ds num) =
+placeValueLowerBound .(d ∷ []) (leadingDigit d nd d>0)
+  rewrite +-identityʳ d = d>0
+placeValueLowerBound .(d ∷ ds) (trailingDigit d ds nd num) =
   ≤-begin
     10 ^ (length (d ∷ ds) ∸ 1)
   ≤-≡⟨⟩
@@ -169,4 +173,27 @@ placeValueLowerBound .(d ∷ ds) (trailingDigit d ds num) =
     d + placeValue ds * 10
   ≤-≡⟨⟩
     placeValue (d ∷ ds)
+  ≤-∎
+
+placeValueUpperBound :
+  ∀ ds → DecimalNumber⁺ ds → placeValue ds < 10 ^ length ds
+placeValueUpperBound .(d ∷ []) (leadingDigit d d≤9 d>0)
+  rewrite +-identityʳ d = s≤s d≤9
+placeValueUpperBound .(d ∷ ds) (trailingDigit d ds d≤9 num) =
+  ≤-begin
+    suc (placeValue (d ∷ ds))
+  ≤-≡⟨⟩
+    suc (d + (placeValue ds) * 10)
+  ≤-≡⟨⟩
+    suc d + (placeValue ds) * 10
+  ≤⟨ +-monoˡ-≤ (placeValue ds * 10) (s≤s d≤9) ⟩
+    10 + (placeValue ds) * 10
+  ≤-≡⟨ *-distribʳ-+ 10 1 (placeValue ds) ⟩
+    (1 + placeValue ds) * 10
+  ≤-≡⟨ *-comm (1 + placeValue ds) 10 ⟩
+    10 * (1 + placeValue ds)
+  ≤⟨ *-monoʳ-≤ 10 (placeValueUpperBound ds num) ⟩
+    10 * 10 ^ length ds
+  ≤-≡⟨⟩
+    10 ^ length (d ∷ ds)
   ≤-∎
